@@ -9,7 +9,9 @@ drills down to a view where desks are booked.
 import calendar
 import json
 import os
+import secrets
 import sqlite3
+import sys
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
@@ -44,8 +46,40 @@ HOLIDAY_TIMEOUT = float(os.environ.get("HOLIDAY_TIMEOUT", "5"))
 REFRESH_OK_DAYS = 30      # re-check a year we already have, occasionally
 RETRY_FAILED_HOURS = 6    # but do not hammer the service after a failure
 
+def secret_key():
+    """The key Flask signs session cookies with.
+
+    Sessions here carry nothing but flash messages -- there is no login and no
+    per-user state -- so an ephemeral key costs only a message in flight when
+    the process restarts. That makes a random key the right default: it keeps
+    `python3 app.py` a one-liner, without ever falling back to a fixed value
+    that anyone reading this file could use to forge a cookie.
+
+    Production still has to set SECRET_KEY explicitly. Under several gunicorn
+    workers each process would otherwise generate a different key, and a flash
+    written by one worker could not be read back by another.
+    """
+    key = os.environ.get("SECRET_KEY", "").strip()
+    if key == "dev-secret-change-me":
+        raise SystemExit(
+            "SECRET_KEY is the old placeholder value, which is published in "
+            "this repository's history and signs nothing safely. Generate a "
+            "real one:\n"
+            "    python3 -c 'import secrets; print(secrets.token_hex(32))'"
+        )
+    if key:
+        return key
+    print(
+        "warning: SECRET_KEY is unset; signing sessions with a random key for "
+        "this process only. Flash messages will not survive a restart, and "
+        "this is not safe under multiple workers. Set SECRET_KEY to deploy.",
+        file=sys.stderr,
+    )
+    return secrets.token_hex(32)
+
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+app.secret_key = secret_key()
 
 
 # --------------------------------------------------------------------------

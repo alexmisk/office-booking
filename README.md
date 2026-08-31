@@ -42,13 +42,13 @@ the build tooling never reach production. It serves with gunicorn rather than th
 Flask dev server, and runs as an unprivileged `uid 10001` with no home directory
 and no login shell.
 
-**`SECRET_KEY` is mandatory.** `app.py` falls back to `dev-secret-change-me` when
-it is unset, which is harmless on a laptop and dangerous once the app is
-reachable: that key signs Flask session cookies, so a publicly known value means
-anyone can forge one. `docker-entrypoint.sh` refuses to start on the default, or
-on no value at all, instead of quietly serving traffic with a known secret. Pass
-the real key with `--env-file` or a secrets manager rather than inline, so it
-stays out of your shell history and the container's metadata.
+**`SECRET_KEY` is mandatory here**, even though running locally does not need
+it. Unset, `app.py` signs sessions with a key it generates per process, which is
+safe but differs between gunicorn workers — a flash message written by one
+worker cannot be read back by another. `docker-entrypoint.sh` therefore refuses
+to start without an explicit key. Pass it with `--env-file` or a secrets manager
+rather than inline, so it stays out of your shell history and the container's
+metadata.
 
 **`/data` is the only writable path.** The database lives at `/data/bookings.db`
 (`BOOKING_DB` is already set for you), and everything else — including the app's
@@ -116,10 +116,6 @@ The base images are pinned by tag (`python:3.13-slim-bookworm`), not by digest,
 so a rebuild can pick up a rebuilt upstream image. `docker buildx imagetools
 inspect python:3.13-slim-bookworm` prints the digest to pin if you want the build
 fully reproducible.
-
-The `SECRET_KEY` fallback is guarded only at the container boundary. Running
-`python3 app.py` directly on a reachable host still serves with the development
-key.
 
 ## Styling
 
