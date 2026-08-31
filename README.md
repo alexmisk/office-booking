@@ -113,10 +113,16 @@ The UI is built from daisyUI components: `navbar`, `card`, `table`, `modal`,
 
 `src/app.css` restricts daisyUI to the components the templates actually use and
 to a custom `evgroup` theme (defined in `@plugin "daisyui/theme"` and set on
-`<html data-theme="evgroup">` — change both together); the full library is ~390KB of CSS, the trimmed build is
-~92KB. `month.html` assembles some class names in JavaScript, where Tailwind's
-scanner cannot see them, so those are listed in `@source inline(...)` — add to
-that list if you introduce new dynamic classes.
+`<html data-theme="evgroup">` — change both together); the full library is ~390KB
+of CSS, the trimmed build is ~49KB. `month.html` assembles some class names in
+JavaScript, where Tailwind's scanner cannot see them, so those are listed in
+`@source inline(...)` — add to that list if you introduce new dynamic classes.
+
+The import uses `source(none)`, which turns off Tailwind's automatic content
+detection, and the sources are then declared explicitly. Without it Tailwind
+scans the whole project and finds `.claude/skills/daisyui/components/*.md` —
+daisyUI's own documentation, whose examples demonstrate every variant of every
+component — adding ~23KB of CSS for classes nothing here uses.
 
 ## Font
 

@@ -1,4 +1,9 @@
-@import "tailwindcss";
+/* source(none) disables Tailwind's automatic content detection, which scans the
+   whole project and would pull in .claude/skills/daisyui/components/*.md --
+   daisyUI's own documentation, whose example markup demonstrates every variant
+   of every component. That silently added ~23KB of unused CSS. The sources this
+   build should actually read are declared explicitly below. */
+@import "tailwindcss" source(none);
 
 /* Only the components these templates use, and one theme: daisyUI ships every
    component otherwise, which is ~390KB of CSS for a five-desk app. */
