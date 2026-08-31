@@ -61,6 +61,31 @@ every Linux capability, `--security-opt no-new-privileges` blocks setuid
 escalation, `--init` supplies a real init to reap processes, and `--tmpfs /tmp`
 is required precisely because the root filesystem is read-only.
 
+### docker compose
+
+The same container, defined as a file rather than a long command line:
+
+```bash
+cp .env.example .env     # then put a real SECRET_KEY in it
+docker compose up -d     # or: docker-compose up -d
+```
+
+`docker-compose.yml` carries every hardening flag from the `docker run` above,
+plus the parts a long-running deployment needs and a one-off command does not:
+`restart: unless-stopped`, a 30s stop grace period, log rotation at 5 × 10MB so
+an unbounded log cannot fill the disk, and CPU/memory limits so a runaway
+process cannot take the host with it.
+
+The secret is read from `.env`, which is gitignored; `.env.example` is the
+committed template. Compose refuses to start if `.env` is absent, and the
+container refuses to start if the key inside it is empty or the development
+default. `.env` is also outside the build context — `.dockerignore` allows only
+what the image needs — so the secret cannot end up in an image layer.
+
+The database lives in the named volume `booking-data`, which survives
+`docker compose down`. It is the only thing here worth backing up. To reset the
+app completely, `docker compose down -v`.
+
 ### Dependencies
 
 `requirements-prod.txt` pins every package, direct and transitive, to an exact

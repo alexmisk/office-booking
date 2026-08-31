@@ -1,0 +1,67 @@
+# Office desk booking -- deployment definition.
+#
+#   cp .env.example .env     # then put a real SECRET_KEY in it
+#   docker compose up -d
+#
+# Every hardening flag from the README's docker run command is expressed here,
+# so `docker compose up` and that command produce the same container.
+
+services:
+  app:
+    build: .
+    image: office-booking
+    container_name: booking
+
+    # SECRET_KEY lives here, not in this file: compose files get committed and
+    # secrets must not. The container refuses to start without a real one.
+    env_file:
+      - .env
+
+    ports:
+      # Reachable from the office LAN, as the README describes. Behind a
+      # reverse proxy, change to "127.0.0.1:5001:5001" so only the proxy can
+      # reach it -- the app has no TLS and no login of its own.
+      - "5001:5001"
+
+    volumes:
+      # The database. This is the only thing worth backing up, and the only
+      # path the container can write to.
+      - booking-data:/data
+
+    # --- hardening -------------------------------------------------------
+    read_only: true          # nothing outside /data may be written
+    tmpfs:
+      - /tmp                 # required precisely because of read_only
+    cap_drop:
+      - ALL                  # the app needs no Linux capabilities at all
+    security_opt:
+      - no-new-privileges:true   # blocks setuid escalation
+    init: true               # a real init to reap orphaned processes
+
+    # --- operations ------------------------------------------------------
+    restart: unless-stopped
+
+    # The image defines HEALTHCHECK; this only sets how compose reacts to it.
+    healthcheck:
+      start_period: 15s
+
+    stop_grace_period: 30s
+
+    # An unbounded json-file log will eventually fill the disk of whatever
+    # small box this runs on. Five 10MB files is plenty of history here.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # Two gunicorn workers serving five desks needs very little. The limit
+    # exists so a runaway process cannot take the host down with it.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+volumes:
+  booking-data:

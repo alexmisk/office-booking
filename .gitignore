@@ -8,3 +8,6 @@ node_modules/
 
 # Raw TypeType trial download; only the web fonts in static/fonts/ are used
 TT-Hoves-Pro-Trial-3-200/
+
+# Real secrets; .env.example is the committed template.
+.env
