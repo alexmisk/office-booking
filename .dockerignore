@@ -1,0 +1,20 @@
+# Deny everything, then allow only what the image actually needs. Safer than a
+# deny-list: a new secret or backup dropped in the tree is excluded by default.
+*
+
+!app.py
+!requirements-prod.txt
+!package.json
+!package-lock.json
+!src/
+!templates/
+!static/
+!docker-entrypoint.sh
+
+# Never ship these, even from an allowed directory.
+**/.DS_Store
+**/__pycache__/
+**/*.pyc
+**/*.db
+**/*.db.bak-*
+**/.env

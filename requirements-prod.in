@@ -1,0 +1,6 @@
+# Direct dependencies for the container image.
+#
+# The app's own requirements, plus the WSGI server that only production uses.
+# Compiled to requirements-prod.txt -- see the header there to regenerate.
+-r requirements.txt
+gunicorn>=23.0
