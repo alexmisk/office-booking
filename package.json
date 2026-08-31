@@ -1,0 +1,19 @@
+{
+  "name": "office-booking",
+  "version": "1.0.0",
+  "description": "CSS build for the office desk booking app",
+  "main": "index.js",
+  "scripts": {
+    "css": "tailwindcss -i src/app.css -o static/app.css --minify",
+    "css:watch": "tailwindcss -i src/app.css -o static/app.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.22",
+    "tailwindcss": "^4.3.3"
+  }
+}

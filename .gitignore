@@ -1,0 +1,10 @@
+bookings.db
+bookings.db.bak-*
+__pycache__/
+*.pyc
+node_modules/
+
+.DS_Store
+
+# Raw TypeType trial download; only the web fonts in static/fonts/ are used
+TT-Hoves-Pro-Trial-3-200/

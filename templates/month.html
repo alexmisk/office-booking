@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ru" data-theme="evgroup">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Бронирование мест в офисе</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="min-h-screen bg-base-200">
+
+<div class="navbar bg-neutral text-neutral-content">
+  <div class="navbar-start">
+    <span class="text-lg font-semibold px-2">Бронирование мест в офисе</span>
+  </div>
+</div>
+
+<main class="mx-auto w-full max-w-[90rem] p-4 sm:p-6">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div role="alert" class="alert alert-soft mb-3 py-2 text-sm {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+          <span>{{ message }}</span>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <div class="join">
+      <a class="btn btn-sm join-item" href="{{ url_for('index', month=prev_month) }}" aria-label="Предыдущий месяц">←</a>
+      <a class="btn btn-sm join-item" href="{{ url_for('index', month=next_month) }}" aria-label="Следующий месяц">→</a>
+    </div>
+    <div class="mr-auto">
+      <h1 class="text-xl font-semibold">{{ first|ru_month }}</h1>
+    </div>
+    {% if not is_this_month %}
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('index', month=this_month) }}">Текущий месяц</a>
+    {% endif %}
+    <button type="button" class="btn btn-sm btn-primary" id="open-range">Забронировать несколько дней</button>
+  </div>
+
+  <div class="card hidden md:block bg-base-100 shadow-sm">
+    <div class="card-body p-0 overflow-x-auto">
+      <table class="table table-fixed w-full min-w-[56rem]">
+      <thead>
+        <tr>
+          {% for name in weekday_names %}
+            <th class="text-center text-xs">{{ name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in month_grid %}
+          <tr>
+            {% for cell in week %}
+              <td class="p-0 align-top border border-base-200
+                         {% if not cell.in_month %}bg-base-200/40{% endif %}
+                         {% if cell.is_past %}bg-base-200/60{% endif %}
+                         {% if cell.holiday %}holiday bg-secondary/15{% endif %}
+                         {% if cell.is_today %}ring-2 ring-primary ring-inset{% endif %}">
+                <a class="cell flex min-h-36 flex-col gap-1 p-2 hover:bg-base-200
+                          {% if cell.holiday or cell.is_past or not cell.in_month %}opacity-70 hover:opacity-100{% endif %}"
+                   href="{{ url_for('day_view', day=cell.iso) }}"
+                   data-day="{{ cell.iso }}">
+                  <span class="num text-sm font-semibold
+                               {%- if cell.is_today %} text-primary
+                               {%- elif cell.is_weekend %} text-base-content/40{% endif %}">{{ cell.date.day }}</span>
+                  {% if cell.holiday %}
+                    <span class="flex items-center gap-1 truncate text-[10px] font-semibold text-secondary">
+                      <span class="status status-secondary status-xs shrink-0"></span>
+                      <span class="truncate">{{ cell.holiday.name }}</span>
+                    </span>
+                  {% endif %}
+                  <span class="names flex flex-col gap-0.5">
+                    {% for surname in cell.names %}
+                      <span class="who-chip badge badge-sm badge-soft badge-primary w-full justify-start">{{ surname }}</span>
+                    {% endfor %}
+                  </span>
+                </a>
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card md:hidden bg-base-100 shadow-sm">
+    <div class="card-body p-0">
+      <ul class="list">
+        {% for week in month_grid %}
+          {% for cell in week %}
+            {% if cell.in_month %}
+              <li class="p-0">
+                <a class="cell list-row items-center rounded-none
+                          {% if cell.is_today %}bg-primary/5{% endif %}
+                          {% if cell.holiday %}holiday bg-secondary/10{% endif %}
+                          {% if cell.is_past %}opacity-70{% endif %}"
+                   href="{{ url_for('day_view', day=cell.iso) }}"
+                   data-day="{{ cell.iso }}"
+                   {% if cell.is_today %}id="today-row"{% endif %}>
+                  <span class="flex w-12 shrink-0 flex-col items-center">
+                    <span class="num text-lg font-semibold leading-none
+                                 {%- if cell.is_today %} text-primary
+                                 {%- elif cell.is_weekend %} text-base-content/40{% endif %}">{{ cell.date.day }}</span>
+                    <span class="text-[10px] uppercase
+                                 {%- if cell.is_weekend %} text-base-content/40
+                                 {%- else %} text-base-content/70{% endif %}">{{ cell.weekday }}</span>
+                  </span>
+                  <span class="list-col-grow min-w-0">
+                    {% if cell.holiday %}
+                      <span class="mb-1 flex items-center gap-1 text-[11px] font-semibold text-secondary">
+                        <span class="status status-secondary status-xs shrink-0"></span>
+                        <span class="truncate">{{ cell.holiday.name }}</span>
+                      </span>
+                    {% endif %}
+                    <span class="names flex flex-wrap gap-1">
+                      {% for surname in cell.names %}
+                        <span class="who-chip badge badge-sm badge-soft badge-primary max-w-full">{{ surname }}</span>
+                      {% endfor %}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</main>
+
+<dialog id="day-dialog" class="modal">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" data-close aria-label="Закрыть">✕</button>
+    </form>
+    <h2 id="dlg-title" class="text-lg font-bold">&nbsp;</h2>
+    <div class="stats stats-horizontal mt-2 w-full bg-base-200">
+      <div class="stat py-3">
+        <div class="stat-title text-xs" id="dlg-free-title">Свободно мест</div>
+        <div class="stat-value text-2xl" id="dlg-free">&nbsp;</div>
+        <div class="stat-desc" id="dlg-summary">&nbsp;</div>
+      </div>
+    </div>
+    <p class="holiday-note alert alert-soft alert-info mt-3 py-2 text-sm" id="dlg-holiday" hidden></p>
+
+    <p class="alert alert-soft mt-3 py-2 text-sm" id="dlg-msg" hidden></p>
+
+    <ul class="dlg-list list my-4 rounded-box bg-base-200" id="dlg-list"></ul>
+
+    <form id="dlg-book" autocomplete="off">
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Ваша фамилия</legend>
+        <div class="join w-full">
+          <input type="text" id="dlg-surname" name="surname" maxlength="60" required
+                 autocomplete="family-name" placeholder="Фамилия"
+                 class="input join-item w-full">
+          <button type="submit" class="btn btn-primary join-item">Забронировать</button>
+        </div>
+      </fieldset>
+    </form>
+
+    <p class="text-sm text-base-content/70" id="dlg-full" hidden>На этот день свободных мест нет.</p>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>Закрыть</button></form>
+</dialog>
+
+<dialog id="range-dialog" class="modal">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" data-close-range aria-label="Закрыть">✕</button>
+    </form>
+    <h2 class="text-lg font-bold">Бронирование на несколько дней</h2>
+    <p class="text-sm text-base-content/70">Укажите период и дни недели, когда вы в офисе.</p>
+
+    <p class="alert alert-soft mt-3 py-2 text-sm" id="rng-msg" hidden></p>
+
+    <form id="rng-form" method="post" action="{{ url_for('book_range') }}">
+      <input type="hidden" name="month" value="{{ first.strftime('%Y-%m') }}">
+
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Ваша фамилия</legend>
+        <input type="text" id="rng-surname" name="surname" maxlength="60" required
+               autocomplete="family-name" placeholder="Фамилия" class="input w-full">
+      </fieldset>
+
+      <div class="flex gap-3">
+        <fieldset class="fieldset grow">
+          <legend class="fieldset-legend">С</legend>
+          <input type="date" id="rng-start" name="start" required class="input w-full">
+        </fieldset>
+        <fieldset class="fieldset grow">
+          <legend class="fieldset-legend">По</legend>
+          <input type="date" id="rng-end" name="end" required class="input w-full">
+        </fieldset>
+      </div>
+
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Дни недели</legend>
+        <div class="join">
+          {% for name in weekday_names %}
+            <label class="join-item cursor-pointer">
+              <input type="checkbox" name="weekday" value="{{ loop.index0 }}"
+                     class="peer sr-only" {% if loop.index0 < 5 %}checked{% endif %}>
+              <span class="btn btn-sm join-item peer-checked:btn-primary">{{ name }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="modal-action">
+        <button type="button" class="btn" data-close-range>Закрыть</button>
+        <button type="submit" class="btn btn-primary">Забронировать</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>Закрыть</button></form>
+</dialog>
+
+<script>
+  const DAYS = {{ days|tojson }};
+  const dialog = document.getElementById('day-dialog');
+  const elTitle = document.getElementById('dlg-title');
+  const elSummary = document.getElementById('dlg-summary');
+  const elList = document.getElementById('dlg-list');
+  const elMsg = document.getElementById('dlg-msg');
+  const elBook = document.getElementById('dlg-book');
+  const elFull = document.getElementById('dlg-full');
+  const elSurname = document.getElementById('dlg-surname');
+  let current = null;
+
+  function post(url, data) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'fetch'},
+      body: new URLSearchParams(data)
+    }).then(function (r) { return r.json(); });
+  }
+
+  function message(text, kind) {
+    elMsg.textContent = text || '';
+    elMsg.className = 'alert alert-soft mb-4 py-2 text-sm ' +
+      (kind === 'success' ? 'alert-success' : kind === 'error' ? 'alert-error' : '');
+    elMsg.hidden = !text;
+  }
+
+  function renderCell(day) {
+    // A day is on the page twice: the desktop grid cell and the mobile list
+    // row. Both have to be updated, and they style their chips differently.
+    document.querySelectorAll('.cell[data-day="' + day.iso + '"]').forEach(
+      function (link) {
+        const wide = !!link.closest('td');
+        const names = link.querySelector('.names');
+        names.textContent = '';
+        day.bookings.forEach(function (b) {
+          const chip = document.createElement('span');
+          chip.className = 'who-chip badge badge-sm badge-soft badge-primary ' +
+            (wide ? 'w-full justify-start' : 'max-w-full');
+          chip.textContent = b.surname;
+          names.appendChild(chip);
+        });
+      }
+    );
+  }
+
+  function render() {
+    const day = current;
+    elTitle.textContent = day.label;
+
+    const note = document.getElementById('dlg-holiday');
+    if (day.holiday) {
+      note.textContent = day.holiday.name;
+      note.hidden = false;
+    } else {
+      note.hidden = true;
+    }
+    document.getElementById('dlg-free').textContent =
+      day.past ? day.bookings.length : day.free;
+    document.getElementById('dlg-free-title').textContent =
+      day.past ? 'Занято мест' : 'Свободно мест';
+    elSummary.textContent = 'из ' + day.total;
+
+    elList.textContent = '';
+    day.bookings.forEach(function (b) {
+      const li = document.createElement('li');
+      li.className = 'dlg-item list-row items-center';
+      const name = document.createElement('span');
+      name.className = 'who list-col-grow truncate font-semibold';
+      name.textContent = b.surname;
+      li.appendChild(name);
+      if (!day.past) li.appendChild(cancelControl(b, li));
+      elList.appendChild(li);
+    });
+    for (let i = 0; i < day.free; i++) {
+      const li = document.createElement('li');
+      li.className = 'dlg-item list-row items-center opacity-70';
+      li.innerHTML = '<span class="status status-success status-sm"></span>' +
+        '<span class="who list-col-grow">Свободно</span>';
+      elList.appendChild(li);
+    }
+
+    elBook.hidden = day.past || day.free === 0;
+    elFull.hidden = day.past || day.free !== 0;
+  }
+
+  function cancelControl(booking, li) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-xs btn-ghost text-error';
+    btn.textContent = 'Отменить';
+    btn.addEventListener('click', function () {
+      btn.disabled = true;                   // no double-submit on a slow link
+      post('/cancel', {booking_id: booking.id, day: current.iso}).then(apply);
+    });
+    return btn;
+  }
+
+  function apply(res) {
+    message(res.message, res.category);
+    // Rejected input (a bad date) can echo a different day; never let that
+    // silently swap what the popup is showing.
+    if (!res.day || res.day.iso !== current.iso) return;
+    current = res.day;
+    DAYS[res.day.iso] = res.day;
+    render();
+    renderCell(res.day);
+  }
+
+  document.querySelectorAll('.cell').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();                    // without JS the href still works
+      current = DAYS[link.dataset.day];
+      message('');
+      render();
+      dialog.showModal();
+      if (!elBook.hidden) {
+        elSurname.value = localStorage.getItem('surname') || '';
+        elSurname.focus();
+        elSurname.select();
+      }
+    });
+  });
+
+  elBook.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const surname = elSurname.value.trim();
+    if (!surname) return;
+    post('/book', {date: current.iso, surname: surname}).then(function (res) {
+      if (res.ok) localStorage.setItem('surname', surname);
+      elSurname.value = '';
+      apply(res);
+    });
+  });
+
+  document.querySelectorAll('[data-close]').forEach(function (btn) {
+    btn.addEventListener('click', function () { dialog.close(); });
+  });
+
+  // On phones the month is a long list, so start it at today.
+  const todayRow = document.getElementById('today-row');
+  if (todayRow && todayRow.offsetParent !== null) {
+    todayRow.scrollIntoView({block: 'center'});
+  }
+
+  // ---- book several days at once ----
+  const rangeDialog = document.getElementById('range-dialog');
+  const rngForm = document.getElementById('rng-form');
+  const rngMsg = document.getElementById('rng-msg');
+  const rngSurname = document.getElementById('rng-surname');
+  const rngStart = document.getElementById('rng-start');
+  const rngEnd = document.getElementById('rng-end');
+  const firstShown = {{ month_grid[0][0].iso|tojson }};
+  const lastShown = {{ month_grid[-1][-1].iso|tojson }};
+
+  document.getElementById('open-range').addEventListener('click', function () {
+    rngMsg.hidden = true;
+    rngSurname.value = localStorage.getItem('surname') || '';
+    // Default to the month on screen, but never start in the past.
+    const now = new Date().toISOString().slice(0, 10);
+    rngStart.value = firstShown < now ? now : firstShown;
+    rngEnd.value = lastShown;
+    rangeDialog.showModal();
+    rngSurname.focus();
+  });
+
+  rngForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const data = new URLSearchParams(new FormData(rngForm));
+    fetch(rngForm.action, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'fetch'},
+      body: data
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      rngMsg.textContent = res.message;
+      rngMsg.className = 'alert alert-soft mb-4 py-2 text-sm ' +
+      (res.category === 'success' ? 'alert-success' : 'alert-error');
+      rngMsg.hidden = false;
+      Object.keys(res.days || {}).forEach(function (iso) {
+        DAYS[iso] = res.days[iso];
+        renderCell(res.days[iso]);
+      });
+      if (res.ok) localStorage.setItem('surname', rngSurname.value.trim());
+    });
+  });
+
+  document.querySelectorAll('[data-close-range]').forEach(function (btn) {
+    btn.addEventListener('click', function () { rangeDialog.close(); });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru" data-theme="evgroup">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Бронирование мест в офисе</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="min-h-screen bg-base-200">
+
+<div class="navbar bg-neutral text-neutral-content">
+  <div class="navbar-start">
+    <a class="btn btn-ghost text-lg font-semibold" href="{{ url_for('index', month=month) }}">Бронирование мест в офисе</a>
+  </div>
+</div>
+
+<main class="mx-auto max-w-xl p-4 sm:p-6">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div role="alert" class="alert alert-soft mb-3 py-2 text-sm {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+          <span>{{ message }}</span>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <a class="link link-hover text-sm text-base-content/70" href="{{ url_for('index', month=month) }}">
+    ← Назад к календарю
+  </a>
+
+  <div class="mt-3 flex flex-wrap items-center gap-3">
+    <div class="join">
+      <a class="btn btn-sm join-item" href="{{ url_for('day_view', day=prev_day) }}" aria-label="Предыдущий день">←</a>
+      <a class="btn btn-sm join-item" href="{{ url_for('day_view', day=next_day) }}" aria-label="Следующий день">→</a>
+    </div>
+    <div class="mr-auto">
+      <h1 class="text-xl font-semibold leading-tight">
+        {% if day == today %}Сегодня{% else %}{{ day|ru_weekday }}{% endif %}
+      </h1>
+      <p class="text-xs text-base-content/70">{{ day|ru_date }}</p>
+    </div>
+    {% if day != today %}
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('day_view', day=today_iso) }}">Сегодня</a>
+    {% endif %}
+    <form method="get" action="{{ url_for('day_view') }}">
+      <input type="date" name="day" value="{{ day.isoformat() }}" class="input input-sm"
+             onchange="this.form.submit()">
+    </form>
+  </div>
+
+  {% if holiday %}
+    <div role="alert" class="alert alert-soft alert-info mt-4 py-2 text-sm">
+      <span>{{ holiday.name }}</span>
+    </div>
+  {% endif %}
+
+  <div class="mt-4 flex flex-wrap items-center gap-3">
+    <div class="stats stats-horizontal bg-base-100 shadow-sm">
+      <div class="stat py-3">
+        <div class="stat-title text-xs">
+          {% if is_past %}Занято мест{% else %}Свободно мест{% endif %}
+        </div>
+        <div class="stat-value text-2xl">
+          {% if is_past %}{{ booked|length }}{% else %}{{ free_count }}{% endif %}
+        </div>
+        <div class="stat-desc">из {{ total }}{% if is_past %} — день уже прошёл{% endif %}</div>
+      </div>
+    </div>
+    {% if not is_past and free_count > 0 %}
+      <button type="button" class="btn btn-primary" id="open-book">Забронировать место</button>
+    {% endif %}
+  </div>
+
+  <ul class="list mt-4 rounded-box bg-base-100 shadow-sm">
+    {% for booking in booked %}
+      <li class="list-row items-center">
+        <span class="status status-primary status-sm"></span>
+        <span class="list-col-grow truncate font-semibold">{{ booking['surname'] }}</span>
+        {% if not is_past %}
+          <form method="post" action="{{ url_for('cancel') }}">
+            <input type="hidden" name="booking_id" value="{{ booking['id'] }}">
+            <input type="hidden" name="day" value="{{ day.isoformat() }}">
+            <button type="submit" class="btn btn-xs btn-ghost text-error">Отменить</button>
+          </form>
+        {% endif %}
+      </li>
+    {% endfor %}
+
+    {% for _ in range(free_count) %}
+      <li class="list-row items-center opacity-70">
+        <span class="status status-success status-sm"></span>
+        <span class="list-col-grow">Свободно</span>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if not is_past and free_count == 0 %}
+    <p class="mt-3 text-sm text-base-content/70">На этот день свободных мест нет.</p>
+  {% endif %}
+</main>
+
+<dialog id="book-dialog" class="modal">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" data-close aria-label="Закрыть">✕</button>
+    </form>
+    <h2 class="text-lg font-bold">Бронирование места</h2>
+    <p class="text-sm text-base-content/70">
+      {{ day|ru_full }} · свободно {{ free_count }} из {{ total }}
+    </p>
+    <form method="post" action="{{ url_for('book') }}">
+      <input type="hidden" name="date" value="{{ day.isoformat() }}">
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Ваша фамилия</legend>
+        <input type="text" id="book-surname" name="surname" maxlength="60" required
+               autocomplete="family-name" placeholder="Фамилия" class="input w-full">
+      </fieldset>
+      <div class="modal-action">
+        <button type="button" class="btn" data-close>Закрыть</button>
+        <button type="submit" class="btn btn-primary">Забронировать</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>Закрыть</button></form>
+</dialog>
+
+<script>
+  const bookDialog = document.getElementById('book-dialog');
+  const openBook = document.getElementById('open-book');
+
+  if (openBook) {
+    openBook.addEventListener('click', function () {
+      const input = document.getElementById('book-surname');
+      input.value = localStorage.getItem('surname') || '';
+      bookDialog.showModal();
+      input.focus();
+      input.select();
+    });
+  }
+
+  document.querySelectorAll('[data-close]').forEach(function (btn) {
+    btn.addEventListener('click', function () { bookDialog.close(); });
+  });
+
+  // Remember the surname locally so repeat bookings are one click faster.
+  document.querySelectorAll('dialog form').forEach(function (form) {
+    const field = form.querySelector('input[name=surname]');
+    if (!field) return;
+    form.addEventListener('submit', function () {
+      const surname = field.value.trim();
+      if (surname) localStorage.setItem('surname', surname);
+    });
+  });
+</script>
+</body>
+</html>

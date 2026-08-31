@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* Only the components these templates use, and one theme: daisyUI ships every
+   component otherwise, which is ~390KB of CSS for a five-desk app. */
+@plugin "daisyui" {
+  themes: false;
+  include: navbar, table, badge, button, modal, alert, input, fieldset, label,
+           join, link, checkbox, card, list, stat, status;
+  logs: false;
+}
+
+/* Palette taken from ev.group's stylesheet: #0053cf brand blue (their most-used
+   colour), #181f25 text, #f0f4f8 section background, #dcddde borders (their
+   rgba(24,31,37,.15) flattened on white), #199c83 teal and #62e5cc mint for
+   secondary accents, #f22c2b for errors. */
+@plugin "daisyui/theme" {
+  name: "evgroup";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #ffffff;
+  --color-base-200: #f0f4f8;
+  --color-base-300: #dcddde;
+  --color-base-content: #181f25;
+  --color-primary: #0053cf;
+  --color-primary-content: #ffffff;
+  --color-secondary: #15846f;
+  --color-secondary-content: #ffffff;
+  --color-accent: #62e5cc;
+  --color-accent-content: #050d18;
+  --color-neutral: #121821;
+  --color-neutral-content: #ffffff;
+  --color-info: #1369ea;
+  --color-info-content: #ffffff;
+  --color-success: #15846f;
+  --color-success-content: #ffffff;
+  --color-warning: #ff9a19;
+  --color-warning-content: #181f25;
+  --color-error: #e02523;
+  --color-error-content: #ffffff;
+
+  --radius-selector: 1rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+
+  --depth: 0;
+  --noise: 0;
+}
+
+/* TT Hoves Pro Trial (TypeType) as the base face.
+   local() first, so a copy installed on the machine is used as-is; otherwise
+   the self-hosted files in static/fonts/ are used. Until those files exist the
+   stack falls through to the system UI font and nothing breaks. */
+@font-face {
+  font-family: "TT Hoves Pro Trial";
+  src: local("TT Hoves Pro Trial Regular"), local("TTHovesProTrial-Regular"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_Regular.woff2") format("woff2"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Hoves Pro Trial";
+  src: local("TT Hoves Pro Trial Medium"), local("TTHovesProTrial-Medium"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_Medium.woff2") format("woff2"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_Medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Hoves Pro Trial";
+  src: local("TT Hoves Pro Trial DemiBold"), local("TTHovesProTrial-DemiBold"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_DemiBold.woff2") format("woff2"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_DemiBold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Hoves Pro Trial";
+  src: local("TT Hoves Pro Trial Bold"), local("TTHovesProTrial-Bold"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_Bold.woff2") format("woff2"),
+       url("/static/fonts/TT_Hoves_Pro_Trial_Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Make it the base sans face; daisyUI components inherit from it. */
+@theme {
+  --font-sans: "TT Hoves Pro Trial", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Jinja templates are where class names normally appear. */
+@source "../templates";
+
+/* month.html assembles these in JavaScript when a booking changes, so the
+   scanner cannot see them in the markup. Keep them regardless. */
+@source inline("badge badge-sm badge-soft badge-primary");
+@source inline("list list-row list-col-grow bg-neutral text-neutral-content");
+@source inline("status status-sm status-success status-primary status-secondary opacity-70");
+@source inline("alert alert-soft alert-success alert-error");
+@source inline("btn btn-xs btn-ghost text-error");
+@source inline("dlg-item flex items-center gap-3 rounded-box bg-base-200 px-3 py-2");
+@source inline("border border-dashed border-base-300 grow truncate justify-start w-full");
+@source inline("font-semibold text-base-content/70 mb-4 text-sm");
+@source inline("min-h-36 min-w-[56rem] max-w-[90rem]");
