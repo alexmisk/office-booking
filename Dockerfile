@@ -10,7 +10,7 @@
 # --------------------------------------------------------------------------
 # Stage 1 -- build static/app.css with Tailwind + daisyUI
 # --------------------------------------------------------------------------
-FROM node:24-bookworm-slim AS css
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS css
 
 WORKDIR /build
 
@@ -34,7 +34,7 @@ RUN npm run css
 # --------------------------------------------------------------------------
 # Stage 2 -- build the Python virtualenv
 # --------------------------------------------------------------------------
-FROM python:3.13-slim-bookworm AS deps
+FROM python:3.13-slim-bookworm@sha256:c45a22ea000adfd9cda29364bbe7edd23001ce5cc2ad15857cfbf7766943b9ca AS deps
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -58,7 +58,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements-prod.txt
 # --------------------------------------------------------------------------
 # Stage 3 -- runtime
 # --------------------------------------------------------------------------
-FROM python:3.13-slim-bookworm AS runtime
+FROM python:3.13-slim-bookworm@sha256:c45a22ea000adfd9cda29364bbe7edd23001ce5cc2ad15857cfbf7766943b9ca AS runtime
 
 # Pick up whatever the base image has not yet been rebuilt with. Base images
 # lag behind Debian security updates by days; this closes that window.

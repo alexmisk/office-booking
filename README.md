@@ -110,12 +110,22 @@ control socket under `$HOME` by default, which errors on every start for a user
 with no home, and is a control channel into the running server that this app has
 no use for.
 
-### Known gaps
+### Keeping the base images current
 
-The base images are pinned by tag (`python:3.13-slim-bookworm`), not by digest,
-so a rebuild can pick up a rebuilt upstream image. `docker buildx imagetools
-inspect python:3.13-slim-bookworm` prints the digest to pin if you want the build
-fully reproducible.
+The base images are pinned by digest as well as tag, so a rebuild uses the
+identical base rather than whatever the tag has moved to since. That buys
+reproducibility at the cost of the thing tags give you for free: pinned digests
+do not pick up Debian security updates. The `apt-get upgrade` in the runtime
+stage patches the packages inside a build, but the pins themselves need
+refreshing every so often — then rebuild and retest:
+
+```bash
+docker buildx imagetools inspect python:3.13-slim-bookworm
+docker buildx imagetools inspect node:24-bookworm-slim
+```
+
+Use the top-level `Digest:` from each. It is a multi-arch index, so amd64 and
+arm64 both keep resolving.
 
 ## Styling
 
