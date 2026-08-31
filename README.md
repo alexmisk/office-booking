@@ -23,6 +23,79 @@ blank. Override with `PORT=8000 python3 app.py` if 5001 is taken.
 To let colleagues on the same network reach it, run
 `HOST=0.0.0.0 python3 app.py` and give them `http://<your-ip>:5001`.
 
+## Docker
+
+```bash
+docker build -t office-booking .
+
+docker run -d --name booking -p 5001:5001 \
+  -e SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
+  -v booking-data:/data \
+  --read-only --tmpfs /tmp \
+  --cap-drop ALL --security-opt no-new-privileges --init \
+  office-booking
+```
+
+The image builds in three stages — Node compiles the stylesheet, pip builds a
+virtualenv, and a slim runtime image receives only those two results — so npm and
+the build tooling never reach production. It serves with gunicorn rather than the
+Flask dev server, and runs as an unprivileged `uid 10001` with no home directory
+and no login shell.
+
+**`SECRET_KEY` is mandatory.** `app.py` falls back to `dev-secret-change-me` when
+it is unset, which is harmless on a laptop and dangerous once the app is
+reachable: that key signs Flask session cookies, so a publicly known value means
+anyone can forge one. `docker-entrypoint.sh` refuses to start on the default, or
+on no value at all, instead of quietly serving traffic with a known secret. Pass
+the real key with `--env-file` or a secrets manager rather than inline, so it
+stays out of your shell history and the container's metadata.
+
+**`/data` is the only writable path.** The database lives at `/data/bookings.db`
+(`BOOKING_DB` is already set for you), and everything else — including the app's
+own code, which is owned by root and merely readable — cannot be modified by the
+running app. That is what makes `--read-only` above work. Without a volume
+mounted at `/data` the app cannot create its database and will not start.
+
+The remaining flags are load-bearing, not decoration: `--cap-drop ALL` removes
+every Linux capability, `--security-opt no-new-privileges` blocks setuid
+escalation, `--init` supplies a real init to reap processes, and `--tmpfs /tmp`
+is required precisely because the root filesystem is read-only.
+
+### Dependencies
+
+`requirements-prod.txt` pins every package, direct and transitive, to an exact
+version and its wheel hashes. The image installs it with `--require-hashes`, so a
+package that has been swapped out or tampered with on PyPI fails the build rather
+than shipping. Edit `requirements-prod.in` and recompile after changing a
+dependency:
+
+```bash
+uv pip compile requirements-prod.in --generate-hashes \
+    --python-version 3.13 --python-platform linux \
+    --output-file requirements-prod.txt
+```
+
+`requirements.txt` is deliberately left loose for local development. The lock is
+compiled for the image's Linux / CPython 3.13 target, and MarkupSafe ships
+platform-specific compiled wheels, so its hashes will not match an install on
+macOS.
+
+Gunicorn is started with `--no-control-socket`: since version 26 it opens a unix
+control socket under `$HOME` by default, which errors on every start for a user
+with no home, and is a control channel into the running server that this app has
+no use for.
+
+### Known gaps
+
+The base images are pinned by tag (`python:3.13-slim-bookworm`), not by digest,
+so a rebuild can pick up a rebuilt upstream image. `docker buildx imagetools
+inspect python:3.13-slim-bookworm` prints the digest to pin if you want the build
+fully reproducible.
+
+The `SECRET_KEY` fallback is guarded only at the container boundary. Running
+`python3 app.py` directly on a reachable host still serves with the development
+key.
+
 ## Styling
 
 The UI uses [daisyUI 5](https://daisyui.com) on Tailwind CSS 4. The stylesheet is
@@ -133,7 +206,8 @@ use the teal so they read as a different kind of thing from bookings.
 ## Data
 
 SQLite file `bookings.db` is created next to `app.py` on first run. Override the
-location with the `BOOKING_DB` environment variable.
+location with the `BOOKING_DB` environment variable — the container image uses it
+to put the database on the `/data` volume, which is its only writable path.
 
 ```sql
 CREATE TABLE bookings (
@@ -185,4 +259,5 @@ convenience, not access control, and there is no undo. If this needs to be
 tamper-proof, put it behind SSO or add per-user accounts.
 
 For anything beyond a single office, run it under a production WSGI server
-(`gunicorn app:app`) rather than the Flask dev server, and set `SECRET_KEY`.
+rather than the Flask dev server, and set a real `SECRET_KEY` — see
+[Docker](#docker), which does both.
