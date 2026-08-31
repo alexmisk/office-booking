@@ -88,11 +88,16 @@ WORKDIR /srv/app
 
 # Everything below is owned by root and only readable by the app user, so a
 # bug in the app cannot rewrite the app's own code or templates.
-COPY --chown=root:root --chmod=644 app.py ./
+COPY --chown=root:root app.py ./
 COPY --chown=root:root templates/ ./templates/
 COPY --chown=root:root static/ ./static/
-COPY --from=css --chown=root:root --chmod=644 /build/static/app.css ./static/app.css
-COPY --chown=root:root --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --from=css --chown=root:root /build/static/app.css ./static/app.css
+COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+# a=rX -> readable by everyone, executable only where it is a directory. Done in
+# a RUN rather than COPY --chmod so the build does not require BuildKit.
+RUN chmod -R a=rX /srv/app \
+    && chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
 # The one writable path: the SQLite database and its -wal/-shm siblings.
 # Mount a volume here (see the run command in README) -- everything else can
